@@ -6,6 +6,7 @@ build-*/
 
 # VSCode
 .vscode/
+.qodo/
 
 # Gedit backup files
 *~
@@ -121,3 +122,4 @@ indi-sx/indi_sx_ccd
 indi-sx/indi_sx_wheel
 indi-sx/sx_ccd_test
 libinovasdk/make_inovasdk_symlink.cmake
+

@@ -1,0 +1,25 @@
+Action                      Command written from Serial Port                         Response read from Serial Port
+
+Power port 1
+
+Power port 2
+
+Power port 3
+
+Power port 4
+
+Power port 5
+
+Dew Heater 1
+
+Dew Heater 2
+
+Auto Dew heater ?
+
+USB C12
+
+USB 345
+
+Sensors                   Is it needed to send a command ?                              Is it send a string containing everything or does it send each answer separately ?
+
+Led extinction ?
