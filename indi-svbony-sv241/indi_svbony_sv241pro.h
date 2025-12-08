@@ -6,6 +6,7 @@
 
 #include <vector>
 #include <stdint.h>
+#include <poll.h>
 
 #include "basedevice.h"
 
@@ -16,23 +17,26 @@ namespace Connection
 
 
 #define START_BYTE 0x24  // '$'
-#define SEND_LENGTH 0x06 // 6 bytes sent
-#define RECV_LENGTH 0x08 // 8 bytes received
+#define SEND_LENGTH 6 // 6 bytes sent
+#define RECV_LENGTH 8 // 8 bytes received
+#define RECV_SYNC_LENGTH 14 // 4 bytes received
+
+static constexpr double TEMP_OFFSET = -255.50;
+static constexpr double HUM_OFFSET = -254.00;
 
 enum Targets
 {
     OUTPUT = 0x01,
     VOLTAGE = 0x03,
-    TEMPERATURE = 0x04,
-    DEWPOINT = 0x05,
-    LENS_TEMP = 0x06,
+    TEMPERATURE = 0x05,
+    LENS_TEMP = 0x04,
     CURRENT = 0x07,
-    HUMIDITY = 0x08,
+    HUMIDITY = 0x06,
+    SYNC = 0x08,
 };
 
 enum PowerPorts
 {
-    ZERO = 0x00,
     DC_1 = 0x00,
     DC_2 = 0x01,
     DC_3 = 0x02,
@@ -82,8 +86,12 @@ class SvbonySV241P : public INDI::DefaultDevice, public INDI::WeatherInterface, 
         bool Ack();
         bool Handshake();
 
-        bool getConsumptionData();
-        bool getMetricsData();
+        bool readEnvironment();
+        bool readCurrent();
+        bool readVoltage();
+        bool computePower();
+        bool readOutput();
+        bool sync();
 
 
         /**
@@ -92,7 +100,8 @@ class SvbonySV241P : public INDI::DefaultDevice, public INDI::WeatherInterface, 
          * @param res if nullptr, respones is ignored, otherwise read response and store it in the buffer.
          * @return
          */
-        bool sendCommand(Targets target, PowerPorts port , uint8_t value, char *response);
+        bool sendCommand(Targets target, PowerPorts port = DC_1 , uint8_t value = 0x00);
+        bool readResponse(uint8_t *buffer, size_t len, Targets expectedCmd);
 
         int PortFD { -1 };
         bool setupComplete { false };
@@ -104,5 +113,8 @@ class SvbonySV241P : public INDI::DefaultDevice, public INDI::WeatherInterface, 
         ////////////////////////////////////////////////////////////////////////////////////
 
         static const uint8_t ML_TIMEOUT { 3 };
+
+        static constexpr int CMD_DELAY = 50000;
+        static constexpr int READ_TIMEOUT = 1000;
 
 };
