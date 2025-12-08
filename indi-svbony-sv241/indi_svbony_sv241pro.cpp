@@ -188,7 +188,7 @@ bool  SvbonySV241P::sendCommand(Targets target, PowerPorts port, uint8_t value)
         LOGF_ERROR("Serial write error: %s.", errstr);
         return false;
     }
-
+    usleep(CMD_DELAY);
     
     return true;
 }
