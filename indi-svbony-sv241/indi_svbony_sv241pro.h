@@ -115,6 +115,6 @@ class SvbonySV241P : public INDI::DefaultDevice, public INDI::WeatherInterface, 
         static const uint8_t ML_TIMEOUT { 3 };
 
         static constexpr int CMD_DELAY = 50000;
-        static constexpr int READ_TIMEOUT = 1000;
+        static constexpr int READ_TIMEOUT = 3000;
 
 };

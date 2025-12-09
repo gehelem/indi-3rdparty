@@ -283,7 +283,7 @@ bool SvbonySV241P::sync(){
     USBPortSP[0].setState(packet[5] ? ISS_ON : ISS_OFF);
     USBPortSP[1].setState(packet[6] ? ISS_ON : ISS_OFF);
 
-    VariableChannelVoltsNP[0].setValue(15.0 * packet[7] / 255);
+    VariableChannelVoltsNP[0].setValue(15.3 * packet[7] / 253);
 
     DewChannelDutyCycleNP[0].setValue(100 * packet[8] / 255);
     DewChannelDutyCycleNP[1].setValue(100 * packet[9] / 255);
@@ -441,7 +441,7 @@ bool SvbonySV241P::SetPowerPort(size_t port, bool enabled)
 bool SvbonySV241P::SetDewPort(size_t port, bool enabled, double dutyCycle)
 {
     // Map dutyCycle (0-100%) to value (0-255) in hex
-    dutyCycle = (dutyCycle < 0.0) ? 0.0 : (dutyCycle > 100.0) ? 100.0 : dutyCycle;
+    dutyCycle = dutyCycle * 255 / 100;
     if (port == 0)
     {
             return sendCommand(OUTPUT, DEW_A, enabled ? dutyCycle : 0x00);
@@ -461,7 +461,7 @@ bool SvbonySV241P::SetVariablePort(size_t port, bool enabled, double voltage)
         return sendCommand(OUTPUT, ADJ, 0x00);
     }
     // Map voltage (0-12V) to value (0-255)
-    uint8_t hex_voltage = static_cast<uint8_t>((voltage / 15.0) * 255.0);
+    uint8_t hex_voltage = static_cast<uint8_t>((voltage / 15.3) * 253);
     return sendCommand(OUTPUT, ADJ, hex_voltage);
 }
 
