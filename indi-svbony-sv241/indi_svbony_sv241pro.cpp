@@ -99,7 +99,7 @@ const char * SvbonySV241P::getDefaultName()
 bool SvbonySV241P::Handshake()
 {
     PortFD = serialConnection->getPortFD();
-    if (true)
+    if (Ack())
     {
         LOG_INFO("Handshake with Svbony SV241 Pro successful.");
         return true;
@@ -210,6 +210,7 @@ bool SvbonySV241P::readResponse(uint8_t *response, size_t len, Targets expectedC
     pfd.events = POLLIN;
     
     size_t totalRead = 0;
+    
     while (totalRead < len)
     {
         int pollResult = poll(&pfd, 1, READ_TIMEOUT);
@@ -225,20 +226,44 @@ bool SvbonySV241P::readResponse(uint8_t *response, size_t len, Targets expectedC
             tcflush(PortFD, TCIOFLUSH);
             return false;
         }
-        ssize_t bytesRead = read(PortFD, response + totalRead, len - totalRead);
+
+        ssize_t bytesRead = 0;
+
+        if (totalRead == 0) 
+        {
+            uint8_t byte = 0;
+            bytesRead = read(PortFD, &byte, 1);
+            
+            if (bytesRead > 0) 
+            {
+                if (byte == 0x24) 
+                {
+                    response[0] = byte;
+                    totalRead = 1; 
+                }
+                else 
+                {
+                    LOGF_DEBUG("Skipping garbage byte: %02X waiting for 0x24", byte);
+                    continue; 
+                }
+            }
+        }
+        else 
+        {
+            bytesRead = read(PortFD, response + totalRead, len - totalRead);
+            
+            if (bytesRead > 0)
+            {
+                totalRead += bytesRead;
+            }
+        }
+
         if (bytesRead < 0)
         {
             LOGF_ERROR("Error reading serial port: %s.", strerror(errno));
             tcflush(PortFD, TCIOFLUSH);
             return false;
         }
-        if (bytesRead == 0)
-        {
-            LOG_ERROR("Read returns 0 bytes.");
-            tcflush(PortFD, TCIOFLUSH);
-            return false;
-        }
-        totalRead += bytesRead;
     }
 
     if (totalRead > 0)
@@ -260,6 +285,12 @@ bool SvbonySV241P::readResponse(uint8_t *response, size_t len, Targets expectedC
         LOGF_ERROR("Expected %zu bytes, got %zu", len, totalRead);
         tcflush(PortFD, TCIOFLUSH);
         return false;
+    }
+
+    if (response[0] != 0x24)
+    {
+         LOGF_ERROR("Invalid Header: expected 0x24, got %02X", response[0]);
+         return false;
     }
 
     if (response[2] != expectedCmd)
