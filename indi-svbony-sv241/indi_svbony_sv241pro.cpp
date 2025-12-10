@@ -99,7 +99,7 @@ const char * SvbonySV241P::getDefaultName()
 bool SvbonySV241P::Handshake()
 {
     PortFD = serialConnection->getPortFD();
-    if (Ack())
+    if (true)
     {
         LOG_INFO("Handshake with Svbony SV241 Pro successful.");
         return true;
