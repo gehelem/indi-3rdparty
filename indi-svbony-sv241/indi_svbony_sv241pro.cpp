@@ -159,8 +159,7 @@ bool SvbonySV241P::ISNewText(const char *dev, const char *name, char *texts[], c
 
 bool  SvbonySV241P::sendCommand(Targets target, PowerPorts port, uint8_t value)
 {
-    unsigned char packet[SEND_LENGTH];
-    int nbytes_written = 0, rc = -1;
+    uint8_t packet[SEND_LENGTH];
     packet[0] = START_BYTE;
     packet[1] = SEND_LENGTH;
     packet[2] = target;
@@ -173,7 +172,7 @@ bool  SvbonySV241P::sendCommand(Targets target, PowerPorts port, uint8_t value)
     {
         checksum += packet[i];
     }
-    packet[SEND_LENGTH - 1] = (unsigned char)(checksum % 256);
+    packet[SEND_LENGTH - 1] = checksum % 256;
     char hexLog[32];
     sprintf(hexLog, "%02X %02X %02X %02X %02X %02X", 
             packet[0], packet[1], packet[2], packet[3], packet[4], packet[5]);
@@ -181,12 +180,21 @@ bool  SvbonySV241P::sendCommand(Targets target, PowerPorts port, uint8_t value)
 
     tcflush(PortFD, TCIOFLUSH);
 
-    if ((rc = tty_write(PortFD, (const char *)packet, SEND_LENGTH, &nbytes_written)) != TTY_OK)
+    size_t totalWritten = 0;
+    while (totalWritten < 6)
     {
-        char errstr[MAXRBUF] = {0};
-        tty_error_msg(rc, errstr, MAXRBUF);
-        LOGF_ERROR("Serial write error: %s.", errstr);
-        return false;
+        ssize_t written = write(PortFD, packet + totalWritten, 6 - totalWritten);
+        if (written < 0)
+        {
+            LOGF_ERROR("Write error: %s", strerror(errno));
+            return false;
+        }
+        if (written == 0)
+        {
+            LOG_ERROR("Write returned 0 bytes");
+            return false;
+        }
+        totalWritten += written;
     }
     usleep(CMD_DELAY);
     
