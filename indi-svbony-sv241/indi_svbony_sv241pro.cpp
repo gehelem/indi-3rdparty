@@ -6,7 +6,6 @@
 #include <cstring>
 #include <memory>
 #include <termios.h>
-#include <fcntl.h>
 #include <unistd.h>
 #include <inttypes.h>
 #include <sys/ioctl.h>
@@ -22,6 +21,8 @@ SvbonySV241P::SvbonySV241P() : INDI::WeatherInterface(this), INDI::PowerInterfac
 bool SvbonySV241P::initProperties()
 {
     INDI::DefaultDevice::initProperties();
+
+    addAuxControls();
     
     setDriverInterface(AUX_INTERFACE | WEATHER_INTERFACE | POWER_INTERFACE);
 
@@ -65,6 +66,10 @@ bool SvbonySV241P::initProperties()
 
     registerConnection(serialConnection);
 
+    serialConnection->setDefaultBaudRate(Connection::Serial::B_115200);
+
+    int bits = TIOCM_RTS;
+    (void) ioctl(PortFD, TIOCMBIC, &bits);
     return true;
 
 }
@@ -160,8 +165,7 @@ bool SvbonySV241P::ISNewText(const char *dev, const char *name, char *texts[], c
 
 bool  SvbonySV241P::sendCommand(Targets target, PowerPorts port, uint8_t value)
 {
-    int nbytes_written = 0, rc = -1;
-    char packet[SEND_LENGTH];
+    uint8_t packet[SEND_LENGTH];
     packet[0] = START_BYTE;
     packet[1] = SEND_LENGTH;
     packet[2] = target;
@@ -169,7 +173,7 @@ bool  SvbonySV241P::sendCommand(Targets target, PowerPorts port, uint8_t value)
     packet[4] = value;
 
     // Calculate checksum
-    char checksum = 0;
+    uint8_t checksum = 0;
     for (int i = 0; i < SEND_LENGTH - 1; i++)
     {
         checksum += packet[i];
@@ -182,51 +186,93 @@ bool  SvbonySV241P::sendCommand(Targets target, PowerPorts port, uint8_t value)
 
     tcflush(PortFD, TCIOFLUSH);
 
-    if ((rc = tty_write(PortFD,packet, SEND_LENGTH, &nbytes_written)) != TTY_OK)
+    size_t totalWritten = 0;
+    while (totalWritten < 6)
     {
-        char errstr[MAXRBUF] = {0};
-        tty_error_msg(rc, errstr, MAXRBUF);
-        LOGF_ERROR("Serial write error: %s.", errstr);
-        return false;
+        ssize_t written = write(PortFD, packet + totalWritten, 6 - totalWritten);
+        if (written < 0)
+        {
+            LOGF_ERROR("Write error: %s", strerror(errno));
+            return false;
+        }
+        if (written == 0)
+        {
+            LOG_ERROR("Write returned 0 bytes");
+            return false;
+        }
+        totalWritten += written;
     }
-
     usleep(CMD_DELAY);
     
     return true;
 }
 
-bool SvbonySV241P::readResponse(uint8_t *response, size_t len, Targets expectedCmd) {
-    if (PortFD < 0) return false;
+bool SvbonySV241P::readResponse(uint8_t *response, size_t len, Targets expectedCmd)
+{
+    if (PortFD < 0)
+        return false;
 
-    int nbytes_read = 0, rc = -1;
-    
+    struct pollfd pfd;
+    pfd.fd = PortFD;
+    pfd.events = POLLIN;
+
     size_t totalRead = 0;
 
-    rc = tty_read(PortFD, (char*)(response), len, READ_TIMEOUT, &nbytes_read);
+    while (totalRead < len)
+    {
+        int pollResult = poll(&pfd, 1, READ_TIMEOUT);
 
-    if (rc != TTY_OK && nbytes_read != (int)len) {
-        LOGF_ERROR("Incomplete packet: expected %zu bytes, got %d", len, nbytes_read + 1);
-        tcflush(PortFD, TCIOFLUSH);
-        return false;
+        if (pollResult < 0)
+        {
+            LOGF_ERROR("Error polling serial port: %s.", strerror(errno));
+            tcflush(PortFD, TCIOFLUSH);
+            return false;
+        }
+
+        if (pollResult == 0)
+        {
+            LOG_ERROR("Timeout reading serial port.");
+            break;
+        }
+
+        ssize_t bytesRead = read(PortFD, response + totalRead, len - totalRead);
+
+        if (bytesRead < 0)
+        {
+            LOGF_ERROR("Error reading serial port: %s.", strerror(errno));
+            tcflush(PortFD, TCIOFLUSH);
+            return false;
+        }
+
+        totalRead += bytesRead;
+
+        
     }
-    
-    totalRead += nbytes_read;
 
     if (totalRead > 0)
     {
-        // Debug Log
-        LOGF_DEBUG("RX (%zu bytes): %02X %02X %02X %02X ...", totalRead, response[0], response[1], response[2], response[3]);
+        LOGF_DEBUG("RX (%zu bytes): %02X %02X %02X %02X %02X %02X %02X %02X",
+                   totalRead,
+                   totalRead > 0 ? response[0] : 0,
+                   totalRead > 1 ? response[1] : 0,
+                   totalRead > 2 ? response[2] : 0,
+                   totalRead > 3 ? response[3] : 0,
+                   totalRead > 4 ? response[4] : 0,
+                   totalRead > 5 ? response[5] : 0,
+                   totalRead > 6 ? response[6] : 0,
+                   totalRead > 7 ? response[7] : 0);
     }
 
     if (totalRead != len)
     {
-        LOGF_ERROR("Size mismatch: Expected %zu, Got %zu", len, totalRead);
+        LOGF_ERROR("Expected %zu bytes, got %zu", len, totalRead);
+        tcflush(PortFD, TCIOFLUSH);
         return false;
     }
 
     if (response[2] != expectedCmd)
     {
-        LOGF_ERROR("Unexpected response command: expected %02X, got %02X", expectedCmd, response[2]);
+        LOGF_ERROR("Unexpected response command: expected %02X, got %02X", expectedCmd, response[1]);
         tcflush(PortFD, TCIOFLUSH);
         return false;
     }
