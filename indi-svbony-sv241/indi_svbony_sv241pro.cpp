@@ -244,7 +244,10 @@ bool SvbonySV241P::readResponse(uint8_t *response, size_t len, Targets expectedC
             return false;
         }
 
-        totalRead += bytesRead;
+        if (bytesRead != 0)
+        {
+            totalRead += bytesRead;
+        }
 
         
     }
