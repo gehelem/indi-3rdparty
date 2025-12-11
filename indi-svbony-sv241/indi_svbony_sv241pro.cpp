@@ -4,6 +4,7 @@
 
 #include <cerrno>
 #include <cstring>
+#include <fcntl.h>
 #include <memory>
 #include <termios.h>
 #include <unistd.h>
@@ -59,14 +60,52 @@ bool SvbonySV241P::initProperties()
 
     // Serial Connection
     serialConnection = new Connection::Serial(this);
+    int modemBits = 0;
+    ioctl(PortFD, TIOCMGET, &modemBits);
+    modemBits &= ~TIOCM_DTR;
+    modemBits &= ~TIOCM_RTS;  
+    ioctl(PortFD, TIOCMSET, &modemBits);
+
+
+    fcntl(PortFD, F_SETFL, 0);
+    struct termios options;
+    tcgetattr(PortFD, &options);
+
+    cfsetispeed(&options, B115200);
+    cfsetospeed(&options, B115200);
+
+    options.c_cflag &= ~PARENB; 
+    options.c_cflag &= ~CSTOPB; 
+    options.c_cflag &= ~CSIZE;
+    options.c_cflag |= CS8;     
+    options.c_cflag &= ~HUPCL;  
+    options.c_cflag |= CLOCAL; 
+    options.c_cflag |= CREAD;  
+    options.c_cflag &= ~CRTSCTS;  
+
+    options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
+    options.c_iflag &= ~(IXON | IXOFF | IXANY);        
+    options.c_oflag &= ~OPOST;                         
+
+    options.c_cc[VMIN] = 0;
+    options.c_cc[VTIME] = 10; 
+
+    tcsetattr(PortFD, TCSANOW, &options);
+    tcflush(PortFD, TCIOFLUSH);
+
+ 
+    ioctl(PortFD, TIOCMGET, &modemBits);
+    modemBits &= ~TIOCM_DTR;
+    modemBits &= ~TIOCM_RTS;
+    ioctl(PortFD, TIOCMSET, &modemBits);
+
+    usleep(500000); 
     serialConnection->registerHandshake([&]()
     {
         return Handshake();
     });
 
     registerConnection(serialConnection);
-
-    serialConnection->setDefaultBaudRate(Connection::Serial::B_115200);
 
     int bits = TIOCM_RTS;
     (void) ioctl(PortFD, TIOCMBIC, &bits);
