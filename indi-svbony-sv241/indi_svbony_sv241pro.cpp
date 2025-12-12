@@ -222,6 +222,8 @@ bool SvbonySV241P::ISNewText(const char *dev, const char *name, char *texts[], c
 
 bool  SvbonySV241P::sendCommand(Targets target, PowerPorts port, uint8_t value)
 {
+    if (PortFD < 0)
+        return false;
     uint8_t packet[SEND_LENGTH];
     packet[0] = START_BYTE;
     packet[1] = SEND_LENGTH;
@@ -246,7 +248,7 @@ bool  SvbonySV241P::sendCommand(Targets target, PowerPorts port, uint8_t value)
     size_t totalWritten = 0;
     while (totalWritten < 6)
     {
-        ssize_t written = write(PortFD, packet + totalWritten, 6 - totalWritten);
+        ssize_t written = write(PortFD, packet + totalWritten, SEND_LENGTH - totalWritten);
         if (written < 0)
         {
             LOGF_ERROR("Write error: %s", strerror(errno));
@@ -486,31 +488,27 @@ void SvbonySV241P::TimerHit(){
     SetTimer(getCurrentPollingPeriod());
 }
 
-
-
-
-
 bool SvbonySV241P::SetPowerPort(size_t port, bool enabled)
 {
     if (port == 0)
     {
-        return sendCommand(OUTPUT, DC_1, enabled ? 0xff : 0x00);
+        return sendCommand(OUTPUT, DC_1, enabled ? 0xFF : 0x00);
     }
     else if (port == 1)
     {
-        return sendCommand(OUTPUT, DC_2, enabled ? 0xff : 0x00);
+        return sendCommand(OUTPUT, DC_2, enabled ? 0xFF : 0x00);
     }
     else if (port == 2)
     {
-        return sendCommand(OUTPUT, DC_3, enabled ? 0xff : 0x00);
+        return sendCommand(OUTPUT, DC_3, enabled ? 0xFF : 0x00);
     }
     else if (port == 3)
     {
-        return sendCommand(OUTPUT, DC_4, enabled ? 0xff : 0x00);
+        return sendCommand(OUTPUT, DC_4, enabled ? 0xFF : 0x00);
     }
     else if (port == 4)
     {
-        return sendCommand(OUTPUT, DC_5, enabled ? 0xff : 0x00);
+        return sendCommand(OUTPUT, DC_5, enabled ? 0xFF : 0x00);
     }
     return false;
 }
@@ -521,11 +519,11 @@ bool SvbonySV241P::SetDewPort(size_t port, bool enabled, double dutyCycle)
     dutyCycle = dutyCycle * 255 / 100;
     if (port == 0)
     {
-            return sendCommand(OUTPUT, DEW_A, enabled ? dutyCycle : 0x00);
+            return sendCommand(OUTPUT, DEW_A, enabled ? static_cast<uint8_t>(dutyCycle) : 0x00);
     }
     else
     {
-        return sendCommand(OUTPUT, DEW_B, enabled ? dutyCycle : 0x00);
+        return sendCommand(OUTPUT, DEW_B, enabled ? static_cast<uint8_t>(dutyCycle) : 0x00);
     }
 }
 
@@ -552,13 +550,13 @@ bool SvbonySV241P::CyclePower()
     sendCommand(OUTPUT, USB_C12, 0x00);
     sendCommand(OUTPUT, USB_345, 0x00);
     sleep(2); // wait for 2 seconds
-    sendCommand(OUTPUT, DC_1, 0xff);
-    sendCommand(OUTPUT, DC_2, 0xff);
-    sendCommand(OUTPUT, DC_3, 0xff);
-    sendCommand(OUTPUT, DC_4, 0xff);
-    sendCommand(OUTPUT, DC_5, 0xff);
-    sendCommand(OUTPUT, USB_C12, 0xff);
-    sendCommand(OUTPUT, USB_345, 0xff);
+    sendCommand(OUTPUT, DC_1, 0xFF);
+    sendCommand(OUTPUT, DC_2, 0xFF);
+    sendCommand(OUTPUT, DC_3, 0xFF);
+    sendCommand(OUTPUT, DC_4, 0xFF);
+    sendCommand(OUTPUT, DC_5, 0xFF);
+    sendCommand(OUTPUT, USB_C12, 0xFF);
+    sendCommand(OUTPUT, USB_345, 0xFF);
     return true;
 }
 
@@ -566,10 +564,10 @@ bool SvbonySV241P::SetUSBPort(size_t port, bool enabled)
 {
     if (port == 0)
     {
-        return sendCommand(OUTPUT, USB_C12, enabled ? 0xff : 0x00);
+        return sendCommand(OUTPUT, USB_C12, enabled ? 0xFF : 0x00);
     }
     else
     {
-        return sendCommand(OUTPUT, USB_345, enabled ? 0xff : 0x00);
+        return sendCommand(OUTPUT, USB_345, enabled ? 0xFF : 0x00);
     }
 }
