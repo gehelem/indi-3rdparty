@@ -235,7 +235,7 @@ bool  SvbonySV241P::sendCommand(Targets target, PowerPorts port, uint8_t value)
     {
         checksum += packet[i];
     }
-    packet[SEND_LENGTH - 1] = checksum % 256;
+    packet[SEND_LENGTH - 1] = checksum % 255;
     char hexLog[32];
     sprintf(hexLog, "%02X %02X %02X %02X %02X %02X", 
             packet[0], packet[1], packet[2], packet[3], packet[4], packet[5]);
