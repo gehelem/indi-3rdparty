@@ -28,8 +28,6 @@ bool SvbonySV241P::initProperties()
 
     WI::initProperties(MAIN_CONTROL_TAB, MAIN_CONTROL_TAB);
 
-    addAuxControls();
-
     PI::SetCapability(POWER_HAS_DC_OUT | POWER_HAS_DEW_OUT | POWER_HAS_VARIABLE_OUT |
                       POWER_HAS_VOLTAGE_SENSOR | POWER_HAS_OVERALL_CURRENT | POWER_HAS_USB_TOGGLE
                       | POWER_HAS_POWER_CYCLE);
@@ -56,6 +54,16 @@ bool SvbonySV241P::initProperties()
     addParameter("WEATHER_DEWPOINT", "Dew Point (°C)", 0, 100, 15);
     addParameter("WEATHER_LENS_TEMPERATURE", "Lens Temperature (°C)", -15, 35, 15);
     setCriticalParameter("WEATHER_TEMPERATURE");
+
+    serialConnection = new Connection::Serial(this);
+
+    serialConnection->registerHandshake([&]()
+    {
+        return true;
+    });
+
+    registerConnection(serialConnection);
+
     return true;
 }
 
@@ -112,8 +120,7 @@ bool SvbonySV241P::Disconnect()
 
 bool SvbonySV241P::openSerialPort()
 {
-    serialConnection = new Connection::Serial(this);
-    const char *portName = serialConnection->port() ;
+    const char *portName = serialConnection->port();
     // Open port with O_NOCTTY to prevent it from becoming controlling terminal
     PortFD = open(portName, O_RDWR | O_NOCTTY);
     if (PortFD < 0)
