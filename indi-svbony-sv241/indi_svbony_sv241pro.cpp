@@ -22,7 +22,6 @@ SvbonySV241P::SvbonySV241P() : INDI::WeatherInterface(this), INDI::PowerInterfac
 bool SvbonySV241P::initProperties()
 {
     INDI::DefaultDevice::initProperties();
-
     addAuxControls();
     
     setDriverInterface(AUX_INTERFACE | WEATHER_INTERFACE | POWER_INTERFACE);
@@ -57,60 +56,7 @@ bool SvbonySV241P::initProperties()
     addParameter("WEATHER_DEWPOINT", "Dew Point (°C)", 0, 100, 15);
     addParameter("WEATHER_LENS_TEMPERATURE", "Lens Temperature (°C)", -15, 35, 15);
     setCriticalParameter("WEATHER_TEMPERATURE");
-
-    // Serial Connection
-    serialConnection = new Connection::Serial(this);
-    int modemBits = 0;
-    ioctl(PortFD, TIOCMGET, &modemBits);
-    modemBits &= ~TIOCM_DTR;
-    modemBits &= ~TIOCM_RTS;  
-    ioctl(PortFD, TIOCMSET, &modemBits);
-
-
-    fcntl(PortFD, F_SETFL, 0);
-    struct termios options;
-    tcgetattr(PortFD, &options);
-
-    cfsetispeed(&options, B115200);
-    cfsetospeed(&options, B115200);
-
-    options.c_cflag &= ~PARENB; 
-    options.c_cflag &= ~CSTOPB; 
-    options.c_cflag &= ~CSIZE;
-    options.c_cflag |= CS8;     
-    options.c_cflag &= ~HUPCL;  
-    options.c_cflag |= CLOCAL; 
-    options.c_cflag |= CREAD;  
-    options.c_cflag &= ~CRTSCTS;  
-
-    options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
-    options.c_iflag &= ~(IXON | IXOFF | IXANY);        
-    options.c_oflag &= ~OPOST;                         
-
-    options.c_cc[VMIN] = 0;
-    options.c_cc[VTIME] = 10; 
-
-    tcsetattr(PortFD, TCSANOW, &options);
-    tcflush(PortFD, TCIOFLUSH);
-
- 
-    ioctl(PortFD, TIOCMGET, &modemBits);
-    modemBits &= ~TIOCM_DTR;
-    modemBits &= ~TIOCM_RTS;
-    ioctl(PortFD, TIOCMSET, &modemBits);
-
-    usleep(500000); 
-    serialConnection->registerHandshake([&]()
-    {
-        return Handshake();
-    });
-
-    registerConnection(serialConnection);
-
-    int bits = TIOCM_RTS;
-    (void) ioctl(PortFD, TIOCMBIC, &bits);
     return true;
-
 }
 
 bool SvbonySV241P::updateProperties()
@@ -119,10 +65,15 @@ bool SvbonySV241P::updateProperties()
 
     if (isConnected())
     {
-
         WI::updateProperties();
         PI::updateProperties();
         setupComplete = true;
+        sync();
+        readVoltage();
+        readCurrent();
+        computePower();
+        readEnvironment();
+
     }
     else
     {
@@ -141,35 +92,95 @@ const char * SvbonySV241P::getDefaultName()
     return "Svbony SV241 Pro";
 }
 
-bool SvbonySV241P::Handshake()
+bool SvbonySV241P::Connect()
 {
-    PortFD = serialConnection->getPortFD();
-    if (Ack())
+    if (!openSerialPort())
     {
-        LOG_INFO("Handshake with Svbony SV241 Pro successful.");
-        return true;
-    }
-    else
-    {
-        LOG_ERROR("Handshake with Svbony SV241 Pro failed.");
+        LOG_INFO("Failed to open port");
         return false;
     }
+    LOG_INFO("Connected");
+    return true;
 }
 
-bool SvbonySV241P::Ack()
+bool SvbonySV241P::Disconnect()
 {
-    bool success = false;
-    for (int i = 0; i < 3; i++)
-    {
-        if (sync())
-        {
-            success = true;
-            break;
-        }
-        sleep(1);
-    }
-    return success;
+    closeSerialPort();
+    LOG_INFO("Disconnected");
+    return true;
+}
 
+bool SvbonySV241P::openSerialPort()
+{
+    serialConnection = new Connection::Serial(this);
+    const char *portName = serialConnection->port() ;
+    // Open port with O_NOCTTY to prevent it from becoming controlling terminal
+    PortFD = open(portName, O_RDWR | O_NOCTTY);
+    if (PortFD < 0)
+    {
+        LOGF_ERROR("Error opening serial port %s: %s", portName, strerror(errno));
+        return false;
+    }
+
+    // CRITICAL: Set DTR and RTS LOW immediately to prevent ESP32 reset
+    // ESP32 boards with CH340/CP2102 use DTR+RTS for auto-reset during programming.
+    // Opening the serial port can cause DTR to pulse HIGH, resetting the device.
+    int modemBits = 0;
+    ioctl(PortFD, TIOCMGET, &modemBits);
+    modemBits &= ~TIOCM_DTR;  // Clear DTR (set LOW)
+    modemBits &= ~TIOCM_RTS;  // Clear RTS (set LOW)
+    ioctl(PortFD, TIOCMSET, &modemBits);
+
+    // Clear non-blocking mode (ensure blocking reads with timeout)
+    fcntl(PortFD, F_SETFL, 0);
+
+    // Configure serial port: 115200 8N1
+    struct termios options;
+    tcgetattr(PortFD, &options);
+
+    cfsetispeed(&options, B115200);
+    cfsetospeed(&options, B115200);
+
+    options.c_cflag &= ~PARENB;  // No parity
+    options.c_cflag &= ~CSTOPB;  // 1 stop bit
+    options.c_cflag &= ~CSIZE;
+    options.c_cflag |= CS8;       // 8 data bits
+    options.c_cflag &= ~HUPCL;    // IMPORTANT: Disable HUPCL to prevent DTR drop on close
+    options.c_cflag |= CLOCAL;    // Ignore modem control lines
+    options.c_cflag |= CREAD;     // Enable receiver
+    options.c_cflag &= ~CRTSCTS;  // Disable hardware flow control
+
+    options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);  // Raw input
+    options.c_iflag &= ~(IXON | IXOFF | IXANY);          // No software flow control
+    options.c_oflag &= ~OPOST;                            // Raw output
+
+    options.c_cc[VMIN] = 0;
+    options.c_cc[VTIME] = 10;  // 1 second timeout
+
+    tcsetattr(PortFD, TCSANOW, &options);
+    tcflush(PortFD, TCIOFLUSH);
+
+    // Ensure DTR/RTS stay LOW after termios configuration
+    ioctl(PortFD, TIOCMGET, &modemBits);
+    modemBits &= ~TIOCM_DTR;
+    modemBits &= ~TIOCM_RTS;
+    ioctl(PortFD, TIOCMSET, &modemBits);
+
+    // Allow USB serial device to stabilize
+    usleep(500000);  // 500ms delay
+
+    LOGF_INFO("Opened serial port %s at 115200 baud (DTR/RTS held LOW)", portName);
+    return true;
+}
+
+void SvbonySV241P::closeSerialPort()
+{
+    if (PortFD >= 0)
+    {
+        close(PortFD);
+        PortFD = -1;
+        LOG_INFO("Closed serial port");
+    }
 }
 
 bool SvbonySV241P::ISNewSwitch(const char *dev, const char *name, ISState *states, char *names[], int n)
@@ -283,11 +294,14 @@ bool SvbonySV241P::readResponse(uint8_t *response, size_t len, Targets expectedC
             return false;
         }
 
-        if (bytesRead != 0)
+        if (bytesRead == 0)
         {
-            totalRead += bytesRead;
+            // EOF - connection closed
+            LOG_ERROR("Read returned 0 bytes (EOF)");
+            break;
         }
 
+        totalRead += bytesRead;
         
     }
 
@@ -456,8 +470,6 @@ void SvbonySV241P::TimerHit(){
         return;
     }
 
-    sync();
-
     readVoltage();
     readCurrent();
     computePower();
@@ -533,7 +545,6 @@ bool SvbonySV241P::CyclePower()
     sendCommand(OUTPUT, USB_C12, 0x00);
     sendCommand(OUTPUT, USB_345, 0x00);
     sleep(2); // wait for 2 seconds
-    Handshake();
     sendCommand(OUTPUT, DC_1, 0xff);
     sendCommand(OUTPUT, DC_2, 0xff);
     sendCommand(OUTPUT, DC_3, 0xff);

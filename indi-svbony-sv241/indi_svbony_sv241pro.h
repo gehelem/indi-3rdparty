@@ -64,6 +64,10 @@ class SvbonySV241P : public INDI::DefaultDevice, public INDI::WeatherInterface, 
 
     protected:
         const char *getDefaultName() override;
+
+        virtual bool Connect() override;
+        virtual bool Disconnect() override;
+
         virtual bool saveConfigItems(FILE *fp) override;
 
         // Event loop
@@ -83,8 +87,8 @@ class SvbonySV241P : public INDI::DefaultDevice, public INDI::WeatherInterface, 
         } 
 
     private:
-        bool Ack();
-        bool Handshake();
+        bool openSerialPort();
+        void closeSerialPort();
 
         bool readEnvironment();
         bool readCurrent();
