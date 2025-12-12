@@ -241,7 +241,7 @@ bool  SvbonySV241P::sendCommand(Targets target, PowerPorts port, uint8_t value)
             packet[0], packet[1], packet[2], packet[3], packet[4], packet[5]);
     LOGF_DEBUG("TX SVBONY -> <%s>", hexLog);
 
-    tcflush(PortFD, TCIOFLUSH);
+    tcflush(PortFD, TCIFLUSH);
 
     size_t totalWritten = 0;
     while (totalWritten < 6)
