@@ -547,10 +547,6 @@ bool SvbonySV241P::SetPowerPort(size_t port, bool enabled)
     {
         DCPort = DC_5;
     }
-    else if (port == 5)
-    {
-        DCPort = DC_6;
-    }
     else
     {
         return false;
