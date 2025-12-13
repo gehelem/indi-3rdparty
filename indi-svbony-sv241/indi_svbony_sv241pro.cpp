@@ -473,7 +473,7 @@ bool SvbonySV241P::readEnvironment()
     data[2] = packet[4];
     data[3] = packet[3];
     memcpy(&rawValue, data, 4);
-    double humidity = (rawValue / 100.0);
+    double humidity = (rawValue / 100.0)  + HUM_OFFSET;
     setParameterValue("WEATHER_HUMIDITY", humidity);
     //Dewpoint
     double dewpoint = (243.04 * (log(humidity / 100.0) + (17.625 * temperature / (243.04 + temperature))) / (17.625 - log(
