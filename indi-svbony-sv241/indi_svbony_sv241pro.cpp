@@ -80,6 +80,7 @@ bool SvbonySV241P::updateProperties()
         readCurrent();
         computePower();
         readEnvironment();
+        SetTimer(getCurrentPollingPeriod());
 
     }
     else
