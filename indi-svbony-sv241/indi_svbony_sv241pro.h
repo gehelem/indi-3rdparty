@@ -77,7 +77,6 @@ class SvbonySV241P : public INDI::DefaultDevice, public INDI::WeatherInterface, 
         virtual bool SetPowerPort(size_t port, bool enabled) override;
         virtual bool SetDewPort(size_t port, bool enabled, double dutyCycle) override;
         virtual bool SetVariablePort(size_t port, bool enabled, double voltage) override;
-        virtual bool CyclePower() override;
         virtual bool SetUSBPort(size_t port, bool enabled) override;
 
         // Weather Overrides
@@ -89,6 +88,7 @@ class SvbonySV241P : public INDI::DefaultDevice, public INDI::WeatherInterface, 
     private:
         bool openSerialPort();
         void closeSerialPort();
+        uint8_t calcChecksum(const uint8_t *packet);
 
         bool readEnvironment();
         bool readCurrent();
