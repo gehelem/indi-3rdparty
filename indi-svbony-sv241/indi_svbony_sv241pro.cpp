@@ -78,10 +78,6 @@ bool SvbonySV241P::updateProperties()
         PI::updateProperties();
         setupComplete = true;
         sync();
-        readVoltage();
-        readPower();
-        computeCurrent();
-        readEnvironment();
         SetTimer(getCurrentPollingPeriod());
 
     }
@@ -466,6 +462,8 @@ bool SvbonySV241P::readEnvironment()
     memcpy(&rawValue, data, 4);
     double temperature = (rawValue / 100.0) + TEMP_OFFSET;
     setParameterValue("WEATHER_TEMPERATURE", temperature);
+    usleep(CMD_DELAY);
+
     //Humidity
     if(!sendCommand(HUMIDITY))
     {
@@ -482,10 +480,14 @@ bool SvbonySV241P::readEnvironment()
     memcpy(&rawValue, data, 4);
     double humidity = (rawValue / 100.0)  + HUM_OFFSET;
     setParameterValue("WEATHER_HUMIDITY", humidity);
+
     //Dewpoint
     double dewpoint = (243.04 * (log(humidity / 100.0) + (17.625 * temperature / (243.04 + temperature))) / (17.625 - log(
                            humidity / 100.0) - (17.625 * temperature / (243.04 + temperature))));
     setParameterValue("WEATHER_DEWPOINT", dewpoint);
+
+    usleep(CMD_DELAY);
+
     // Lens Temperature
     if(!sendCommand(LENS_TEMP))
     {
@@ -523,8 +525,10 @@ void SvbonySV241P::TimerHit()
     }
 
     readVoltage();
+    usleep(CMD_DELAY);
     readPower();
     computeCurrent();
+    usleep(CMD_DELAY);
 
     readEnvironment();
 
