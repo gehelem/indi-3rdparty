@@ -24,7 +24,7 @@ bool SvbonySV241P::initProperties()
     INDI::DefaultDevice::initProperties();
     addAuxControls();
 
-    setDriverInterface(AUX_INTERFACE | WEATHER_INTERFACE | POWER_INTERFACE);
+    setDriverInterface(AUX_INTERFACE | POWER_INTERFACE | WEATHER_INTERFACE);
 
     WI::initProperties(MAIN_CONTROL_TAB, MAIN_CONTROL_TAB);
 
@@ -196,6 +196,8 @@ bool SvbonySV241P::ISNewSwitch(const char *dev, const char *name, ISState *state
     {
         if (PI::processSwitch(dev, name, states, names, n))
             return true;
+        if (WI::processSwitch(dev, name, states, names, n))
+            return true;
     }
     return INDI::DefaultDevice::ISNewSwitch(dev, name, states, names, n);
 }
@@ -205,6 +207,8 @@ bool SvbonySV241P::ISNewNumber(const char *dev, const char *name, double values[
     if (dev && !strcmp(dev, getDeviceName()))
     {
         if (PI::processNumber(dev, name, values, names, n))
+            return true;
+        if (WI::processNumber(dev, name, values, names, n))
             return true;
     }
     return INDI::DefaultDevice::ISNewNumber(dev, name, values, names, n);
