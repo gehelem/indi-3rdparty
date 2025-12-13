@@ -48,11 +48,13 @@ bool SvbonySV241P::initProperties()
     DewChannelDutyCycleNP[1].setStep(1);
 
     // Environment Group
-    addParameter("WEATHER_TEMPERATURE", "Temperature (°C)", -15, 35, 15);
-    addParameter("WEATHER_HUMIDITY", "Humidity (%)", 0, 100, 15);
-    addParameter("WEATHER_DEWPOINT", "Dew Point (°C)", 0, 100, 15);
-    addParameter("WEATHER_LENS_TEMPERATURE", "Lens Temperature (°C)", -15, 35, 15);
-    setCriticalParameter("WEATHER_TEMPERATURE");
+    WI::addParameter("WEATHER_TEMPERATURE", "Temperature (°C)", -15, 35, 15);
+    WI::addParameter("WEATHER_HUMIDITY", "Humidity (%)", 0, 100, 15);
+    WI::addParameter("WEATHER_DEWPOINT", "Dew Point (°C)", 0, 100, 15);
+    WI::addParameter("WEATHER_LENS_TEMPERATURE", "Lens Temperature (°C)", -15, 35, 15);
+    WI::setCriticalParameter("WEATHER_TEMPERATURE");
+    WI::setCriticalParameter("WEATHER_HUMIDITY");
+
 
     serialConnection = new Connection::Serial(this);
 
