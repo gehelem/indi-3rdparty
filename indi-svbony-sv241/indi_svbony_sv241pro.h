@@ -91,9 +91,9 @@ class SvbonySV241P : public INDI::DefaultDevice, public INDI::WeatherInterface, 
         uint8_t calcChecksum(const uint8_t *packet);
 
         bool readEnvironment();
-        bool readCurrent();
         bool readVoltage();
-        bool computePower();
+        bool readPower();
+        bool computeCurrent();
         bool readOutput();
         bool sync();
 

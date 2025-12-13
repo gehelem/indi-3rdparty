@@ -413,7 +413,7 @@ bool SvbonySV241P::readVoltage()
     return true;
 }
 
-bool SvbonySV241P::readCurrent()
+bool SvbonySV241P::readPower()
 {
     if(!sendCommand(CURRENT))
     {
@@ -427,19 +427,17 @@ bool SvbonySV241P::readCurrent()
     uint8_t data[4] = {packet[6], packet[5], packet[4], packet[3]};
     int32_t rawValue;
     memcpy(&rawValue, data, 4);
-    double current = (rawValue / 100.0);
-    PowerSensorsNP[SENSOR_CURRENT].setValue(current);
+    double power = (15.57 * (voltage * rawValue/100.0) + 269.39) / 1000.0;
+    PowerSensorsNP[SENSOR_POWER].setValue(power);
     PowerSensorsNP.apply();
     return true;
 }
 
-bool SvbonySV241P::computePower()
+bool SvbonySV241P::computeCurrent()
 {
+    double power = PowerSensorsNP[SENSOR_POWER].getValue();
     double voltage = PowerSensorsNP[SENSOR_VOLTAGE].getValue();
-    double current = PowerSensorsNP[SENSOR_CURRENT].getValue();
-    double power = (15.57 * (voltage * current) + 269.39) / 1000.0;
-    PowerSensorsNP[SENSOR_POWER].setValue(power);
-    PowerSensorsNP.apply();
+    double current = ((power * 1000.0) - 269.39) / (15.57 * voltage);
     return true;
 }
 
