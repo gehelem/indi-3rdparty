@@ -23,7 +23,7 @@ bool SvbonySV241P::initProperties()
 {
     INDI::DefaultDevice::initProperties();
     addAuxControls();
-    
+
     setDriverInterface(AUX_INTERFACE | WEATHER_INTERFACE | POWER_INTERFACE);
 
     WI::initProperties(MAIN_CONTROL_TAB, MAIN_CONTROL_TAB);
@@ -247,7 +247,7 @@ bool  SvbonySV241P::sendCommand(Targets target, PowerPorts port, uint8_t value)
     // Calculate checksum
     packet[SEND_LENGTH - 1] = calcChecksum(packet);
     char hexLog[32];
-    sprintf(hexLog, "%02X %02X %02X %02X %02X %02X", 
+    sprintf(hexLog, "%02X %02X %02X %02X %02X %02X",
             packet[0], packet[1], packet[2], packet[3], packet[4], packet[5]);
     LOGF_DEBUG("TX SVBONY -> <%s>", hexLog);
 
@@ -270,7 +270,7 @@ bool  SvbonySV241P::sendCommand(Targets target, PowerPorts port, uint8_t value)
         totalWritten += written;
     }
     usleep(CMD_DELAY);
-    
+
     return true;
 }
 
@@ -319,7 +319,7 @@ bool SvbonySV241P::readResponse(uint8_t *response, size_t len, Targets expectedC
         }
 
         totalRead += bytesRead;
-        
+
     }
 
     if (totalRead > 0)
@@ -353,7 +353,8 @@ bool SvbonySV241P::readResponse(uint8_t *response, size_t len, Targets expectedC
     return true;
 }
 
-bool SvbonySV241P::sync(){
+bool SvbonySV241P::sync()
+{
     if (!sendCommand(SYNC))
     {
         return false;
@@ -386,16 +387,17 @@ bool SvbonySV241P::sync(){
     VariableChannelVoltsNP.apply();
     DewChannelDutyCycleNP.setState(IPS_OK);
     DewChannelDutyCycleNP.apply();
-    
+
     return true;
 }
 
-bool SvbonySV241P::readVoltage(){
+bool SvbonySV241P::readVoltage()
+{
     if(!sendCommand(VOLTAGE))
     {
         return false;
     }
-    
+
     uint8_t packet[RECV_LENGTH];
     if(!readResponse(packet, RECV_LENGTH, VOLTAGE))
     {
@@ -410,13 +412,15 @@ bool SvbonySV241P::readVoltage(){
     return true;
 }
 
-bool SvbonySV241P::readCurrent(){
+bool SvbonySV241P::readCurrent()
+{
     if(!sendCommand(CURRENT))
     {
         return false;
     }
     uint8_t packet[RECV_LENGTH];
-    if(!readResponse(packet, RECV_LENGTH, CURRENT)){
+    if(!readResponse(packet, RECV_LENGTH, CURRENT))
+    {
         return false;
     }
     uint8_t data[4] = {packet[6], packet[5], packet[4], packet[3]};
@@ -428,7 +432,8 @@ bool SvbonySV241P::readCurrent(){
     return true;
 }
 
-bool SvbonySV241P::computePower(){
+bool SvbonySV241P::computePower()
+{
     double voltage = PowerSensorsNP[SENSOR_VOLTAGE].getValue();
     double current = PowerSensorsNP[SENSOR_CURRENT].getValue();
     double power = (15.57 * (voltage * current) + 269.39) / 1000.0;
@@ -437,13 +442,15 @@ bool SvbonySV241P::computePower(){
     return true;
 }
 
-bool SvbonySV241P::readEnvironment(){
+bool SvbonySV241P::readEnvironment()
+{
     if(!sendCommand(TEMPERATURE))
     {
         return false;
     }
     uint8_t packet[RECV_LENGTH];
-    if(!readResponse(packet, RECV_LENGTH, TEMPERATURE)){
+    if(!readResponse(packet, RECV_LENGTH, TEMPERATURE))
+    {
         return false;
     }
     uint8_t data[4] = {packet[6], packet[5], packet[4], packet[3]};
@@ -456,7 +463,8 @@ bool SvbonySV241P::readEnvironment(){
     {
         return false;
     }
-    if(!readResponse(packet, RECV_LENGTH, HUMIDITY)){
+    if(!readResponse(packet, RECV_LENGTH, HUMIDITY))
+    {
         return false;
     }
     data[0] = packet[6];
@@ -467,14 +475,16 @@ bool SvbonySV241P::readEnvironment(){
     double humidity = (rawValue / 100.0);
     setParameterValue("WEATHER_HUMIDITY", humidity);
     //Dewpoint
-    double dewpoint = (243.04 * (log(humidity / 100.0) + (17.625 * temperature / (243.04 + temperature))) / (17.625 - log(humidity / 100.0) - (17.625 * temperature / (243.04 + temperature))));
+    double dewpoint = (243.04 * (log(humidity / 100.0) + (17.625 * temperature / (243.04 + temperature))) / (17.625 - log(
+                           humidity / 100.0) - (17.625 * temperature / (243.04 + temperature))));
     setParameterValue("WEATHER_DEWPOINT", dewpoint);
     // Lens Temperature
     if(!sendCommand(LENS_TEMP))
     {
         return false;
     }
-    if(!readResponse(packet, RECV_LENGTH, LENS_TEMP)){
+    if(!readResponse(packet, RECV_LENGTH, LENS_TEMP))
+    {
         return false;
     }
     data[0] = packet[6];
@@ -496,7 +506,8 @@ bool SvbonySV241P::saveConfigItems(FILE *fp)
     return true;
 }
 
-void SvbonySV241P::TimerHit(){
+void SvbonySV241P::TimerHit()
+{
     if (!isConnected() || setupComplete == false)
     {
         SetTimer(getCurrentPollingPeriod());
@@ -544,16 +555,17 @@ bool SvbonySV241P::SetPowerPort(size_t port, bool enabled)
     {
         return false;
     }
-    if(!sendCommand(OUTPUT, DCPort, stateValue)){
+    if(!sendCommand(OUTPUT, DCPort, stateValue))
+    {
         return false;
     }
     return true;
-    
+
 }
 
 bool SvbonySV241P::SetDewPort(size_t port, bool enabled, double dutyCycle)
 {
-    uint8_t stateValue = enabled ? static_cast<uint8_t>(dutyCycle * 253/100) : 0x00;
+    uint8_t stateValue = enabled ? static_cast<uint8_t>(dutyCycle * 253 / 100) : 0x00;
     uint8_t dewPort;
     if(port == 0)
     {
@@ -567,7 +579,8 @@ bool SvbonySV241P::SetDewPort(size_t port, bool enabled, double dutyCycle)
     {
         return false;
     }
-    if(!sendCommand(OUTPUT, dewPort, stateValue)){
+    if(!sendCommand(OUTPUT, dewPort, stateValue))
+    {
         return false;
     }
     return true;
@@ -577,8 +590,9 @@ bool SvbonySV241P::SetVariablePort(size_t port, bool enabled, double voltage)
 {
     INDI_UNUSED(port);
 
-    uint8_t stateValue = enabled ? static_cast<uint8_t>(voltage * 253/100) : 0x00;
-    if(!sendCommand(OUTPUT, ADJ, stateValue)){
+    uint8_t stateValue = enabled ? static_cast<uint8_t>(voltage * 253 / 100) : 0x00;
+    if(!sendCommand(OUTPUT, ADJ, stateValue))
+    {
         return false;
     }
     return true;
@@ -600,9 +614,10 @@ bool SvbonySV241P::SetUSBPort(size_t port, bool enabled)
     {
         return false;
     }
-    if(!sendCommand(OUTPUT, USBPort, stateValue)){
+    if(!sendCommand(OUTPUT, USBPort, stateValue))
+    {
         return false;
     }
     return true;
-        
+
 }
