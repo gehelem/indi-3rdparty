@@ -77,8 +77,8 @@ bool SvbonySV241P::updateProperties()
         setupComplete = true;
         sync();
         readVoltage();
-        readCurrent();
-        computePower();
+        readPower();
+        computeCurrent();
         readEnvironment();
         SetTimer(getCurrentPollingPeriod());
 
@@ -424,6 +424,7 @@ bool SvbonySV241P::readPower()
     {
         return false;
     }
+    double voltage = PowerSensorsNP[SENSOR_VOLTAGE].getValue();
     uint8_t data[4] = {packet[6], packet[5], packet[4], packet[3]};
     int32_t rawValue;
     memcpy(&rawValue, data, 4);
@@ -438,6 +439,7 @@ bool SvbonySV241P::computeCurrent()
     double power = PowerSensorsNP[SENSOR_POWER].getValue();
     double voltage = PowerSensorsNP[SENSOR_VOLTAGE].getValue();
     double current = ((power * 1000.0) - 269.39) / (15.57 * voltage);
+    PowerSensorsNP[SENSOR_CURRENT].setValue(current);
     return true;
 }
 
@@ -514,8 +516,8 @@ void SvbonySV241P::TimerHit()
     }
 
     readVoltage();
-    readCurrent();
-    computePower();
+    readPower();
+    computeCurrent();
 
     readEnvironment();
 
