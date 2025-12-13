@@ -438,7 +438,8 @@ bool SvbonySV241P::computeCurrent()
 {
     double power = PowerSensorsNP[SENSOR_POWER].getValue();
     double voltage = PowerSensorsNP[SENSOR_VOLTAGE].getValue();
-    double current = ((power * 1000.0) - 269.39) / (15.57 * voltage);
+    if (voltage == 0) return true;
+    double current = power / voltage;
     PowerSensorsNP[SENSOR_CURRENT].setValue(current);
     return true;
 }
