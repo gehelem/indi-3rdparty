@@ -525,7 +525,7 @@ void SvbonySV241P::TimerHit()
 
 bool SvbonySV241P::SetPowerPort(size_t port, bool enabled)
 {
-    uint8_t DCPort;
+    PowerPorts DCPort;
     uint8_t stateValue = enabled ? 0xFF : 0x00;
     if (port == 0)
     {
@@ -562,7 +562,7 @@ bool SvbonySV241P::SetPowerPort(size_t port, bool enabled)
 bool SvbonySV241P::SetDewPort(size_t port, bool enabled, double dutyCycle)
 {
     uint8_t stateValue = enabled ? static_cast<uint8_t>(dutyCycle * 253 / 100) : 0x00;
-    uint8_t dewPort;
+    PowerPorts dewPort;
     if(port == 0)
     {
         dewPort = DEW_A;
@@ -596,7 +596,7 @@ bool SvbonySV241P::SetVariablePort(size_t port, bool enabled, double voltage)
 
 bool SvbonySV241P::SetUSBPort(size_t port, bool enabled)
 {
-    uint8_t USBPort;
+    PowerPorts USBPort;
     uint8_t stateValue = enabled ? 0xFF : 0x00;
     if (port == 0)
     {
